@@ -26,8 +26,7 @@ APICALL EXPORT std::string PLUGIN_API_VERSION() { return HYPRLAND_API_VERSION; }
 class CWindowTransformer : public IWindowTransformer {
 public:
   virtual CFramebuffer *transform(CFramebuffer *in);
-  virtual void preWindowRender(SRenderData *pRenderData, CFramebuffer *in,
-                               struct wlr_surface *surface);
+  virtual void preWindowRender(SRenderData *pRenderData);
 
 private:
   CFramebuffer fb;
@@ -57,15 +56,14 @@ color.r = 0.5;
 gl_FragColor = vec4(color, 0.2);
 })#";
 
-void CWindowTransformer::preWindowRender(SRenderData *pRenderData,
-                                         CFramebuffer *in,
-                                         struct wlr_surface *surface) {
+void CWindowTransformer::preWindowRender(SRenderData *pRenderData) {
 
   // oldPos = {(double)pRenderData->x, (double)pRenderData->y};
 
-  if (!fb.isAllocated() || fb.m_vSize != in->m_vSize) {
+  if (!fb.isAllocated() || fb.m_vSize.x != pRenderData->w ||
+      fb.m_vSize.y != pRenderData->h) {
     fb.release();
-    fb.alloc(in->m_vSize.x, in->m_vSize.y);
+    fb.alloc(pRenderData->w, pRenderData->h);
   }
   fb.bind();
   g_pHyprOpenGL->clear(CColor(0, 0, 0, 0));
@@ -84,8 +82,8 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData,
     std::cout << "GEN SHADER " << std::endl;
   }
 
-  int wid = in->m_vSize.x;
-  int he = in->m_vSize.y;
+  // int wid = in->m_vSize.x;
+  // int he = in->m_vSize.y;
   // std::cout << pRenderData->w << wid << std::endl;
   // std::cout << pRenderData->h << he << std::endl;
   // int wid = (int)std::round(pRenderData->pWindow->m_vReportedSize.x);
