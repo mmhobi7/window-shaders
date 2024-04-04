@@ -23,16 +23,17 @@ inline HANDLE PHANDLE = nullptr;
 // Do NOT change this function.
 APICALL EXPORT std::string PLUGIN_API_VERSION() { return HYPRLAND_API_VERSION; }
 
-// Shader sources
-const GLchar *vertexSource =
-    "#version 330 core\n"
-    "in vec2 position;"
-    "in vec2 texcoord;"
-    "out vec2 TexCoord;"
-    "void main() {"
-    "    TexCoord = texcoord;"
-    "    gl_Position = vec4(position.x, position.y, 0.0, 1.0);"
-    "}";
+class CWindowTransformer : public IWindowTransformer {
+public:
+  virtual CFramebuffer *transform(CFramebuffer *in);
+  virtual void preWindowRender(SRenderData *pRenderData, CFramebuffer *in,
+                               struct wlr_surface *surface);
+
+private:
+  CFramebuffer fb;
+};
+
+std::vector<CWindowTransformer *> ptrs;
 
 inline const std::string myTEXVERTSRC = R"#(
 uniform mat3 proj;
@@ -44,21 +45,6 @@ void main() {
     gl_Position = vec4(vec3(pos, 1.0), 1.0);
     v_texcoord = texcoord;
 })#";
-
-class CWindowTransformer : public IWindowTransformer {
-public:
-  CWindowTransformer() {}
-
-  virtual CFramebuffer *transform(CFramebuffer *in);
-  virtual void preWindowRender(SRenderData *pRenderData, CFramebuffer *in,
-                               struct wlr_surface *surface);
-
-private:
-  // CShader shader;
-  CFramebuffer fb;
-  // unsigned int prog, vertex, fragment;
-};
-std::vector<CWindowTransformer *> ptrs;
 
 inline const std::string myTEXFRAGSRCRGBAPASSTHRU = R"#(
 precision highp float;
@@ -76,11 +62,8 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData,
                                          struct wlr_surface *surface) {
 
   // oldPos = {(double)pRenderData->x, (double)pRenderData->y};
-  // CFramebuffer fb;
 
   if (!fb.isAllocated() || fb.m_vSize != in->m_vSize) {
-    std::cout << "what" << fb.m_vSize.size() << " " << in->m_vSize.size()
-              << std::endl;
     fb.release();
     fb.alloc(in->m_vSize.x, in->m_vSize.y);
   }
@@ -211,9 +194,6 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData,
   // std::string str = "/home/air/tmp/outout_" + std::to_string(a);
   // stbi_write_png(str.c_str(), wid, he, 4, pixels, wid * 4);
   // // fb.release();
-
-  // TODO: do I need to copy the target back into tex.m_iTexID? (is already
-  // there right?)
 }
 
 CFramebuffer *CWindowTransformer::transform(CFramebuffer *in) { return in; }
