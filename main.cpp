@@ -1,5 +1,7 @@
 #define WLR_USE_UNSTABLE
 
+#include <hyprland/src/render/OpenGL.hpp>
+
 #include <hyprland/src/helpers/Box.hpp>
 
 #include <hyprland/src/render/Framebuffer.hpp>
@@ -66,7 +68,7 @@ uniform sampler2D tex;
 void main() {
 vec3 color = texture2D(tex, v_texcoord).rgb;
 color.r = 0.5;
-gl_FragColor = vec4(color, 1.0);
+gl_FragColor = vec4(color, 0.2);
 })#";
 
 void CWindowTransformer::preWindowRender(SRenderData *pRenderData,
@@ -77,6 +79,8 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData,
   // CFramebuffer fb;
 
   if (!fb.isAllocated() || fb.m_vSize != in->m_vSize) {
+    std::cout << "what" << fb.m_vSize.size() << " " << in->m_vSize.size()
+              << std::endl;
     fb.release();
     fb.alloc(in->m_vSize.x, in->m_vSize.y);
   }
@@ -103,36 +107,30 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData,
   // int wid = (int)std::round(pRenderData->pWindow->m_vReportedSize.x);
   // int he = (int)std::round(pRenderData->pWindow->m_vReportedSize.x);
 
-  // glViewport(0, 0, wid, he);
+  glViewport(0, 0, pRenderData->pWindow->m_vReportedSize.x,
+             pRenderData->pWindow->m_vReportedSize.y);
 
-  // cover entire screen
-  float quadVertices[] = {// vertex attributes for a quad that fills the
-                          // entire
-                          // screen in Normalized Device Coordinates.
-                          // positions   // texCoords
-                          -1.0f, 1.0f, 0.0f, 1.0f,  -1.0f, -1.0f,
-                          0.0f,  0.0f, 1.0f, -1.0f, 1.0f,  0.0f,
+  // unsigned int quadVAO, quadVBO;
+  // glGenVertexArrays(1, &quadVAO);
+  // glGenBuffers(1, &quadVBO);
+  // glBindVertexArray(quadVAO);
+  // glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+  // glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices,
+  //              GL_STATIC_DRAW);
 
-                          -1.0f, 1.0f, 0.0f, 1.0f,  1.0f,  -1.0f,
-                          1.0f,  0.0f, 1.0f, 1.0f,  1.0f,  1.0f};
-  unsigned int quadVAO, quadVBO;
-  glGenVertexArrays(1, &quadVAO);
-  glGenBuffers(1, &quadVBO);
-  glBindVertexArray(quadVAO);
-  glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices,
-               GL_STATIC_DRAW);
+  glVertexAttribPointer(shader->posAttrib, 2, GL_FLOAT, GL_FALSE, 4,
+                        fanVertsFull);
+  glVertexAttribPointer(shader->texAttrib, 2, GL_FLOAT, GL_FALSE, 4,
+                        fanVertsFull);
+  glEnableVertexAttribArray(shader->posAttrib);
+  glEnableVertexAttribArray(shader->texAttrib);
 
-  // glVertexAttribPointer(shader->posAttrib, 2, GL_FLOAT, GL_FALSE, 0,
-  // fullVerts); glVertexAttribPointer(shader->texAttrib, 2, GL_FLOAT, GL_FALSE,
-  // 0, fullVerts); glEnableVertexAttribArray(shader->posAttrib);
-  // glEnableVertexAttribArray(shader->texAttrib);
-
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *)0);
-  glEnableVertexAttribArray(1);
-  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float),
-                        (void *)(2 * sizeof(float)));
+  // glEnableVertexAttribArray(0);
+  // glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void
+  // *)0);
+  // glEnableVertexAttribArray(1); glVertexAttribPointer(1, 2, GL_FLOAT,
+  // GL_FALSE, 4 * sizeof(float),
+  //                       (void *)(2 * sizeof(float)));
   // fb.bind();
 
   // GLint posAttrib = -1;
@@ -178,17 +176,41 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData,
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(tex.m_iTarget, tex.m_iTexID);
   // glBindTexture(GL_TEXTURE_2D, tex.m_iTexID);
-  glDrawArrays(GL_TRIANGLES, 0, 6);
+
+  // g_pHyprOpenGL->m_RenderData.clipBox = rg.getExtents();
+  // CRegion rg = pWindow->getFullWindowBoundingBox()
+  //                  .translate(-pMonitor->vecPosition +
+  //                             PWORKSPACE->m_vRenderOffset.value())
+  //                  .scale(pMonitor->scale);
+  // g_pHyprOpenGL->m_RenderData.clipBox = rg.getExtents();
+  // g_pHyprOpenGL->m_RenderData.clipBox
+  // CRegion rg = pRenderData->pWindow->getFullWindowBoundingBox();
+  // //                  //  .translate(-pRenderData->pMonitor->vecPosition)
+  // //                  .scale(pRenderData->pMonitor->scale);
+  // g_pHyprOpenGL->m_RenderData.clipBox = rg.getExtents();
+
+  // CRegion damageClip{0, 0, g_pHyprOpenGL->m_RenderData.clipBox.width,
+  //                    g_pHyprOpenGL->m_RenderData.clipBox.height};
+  // // damageClip.intersect(g_pHyprOpenGL->m_RenderData.damage);
+
+  // if (!damageClip.empty()) {
+  //   for (auto &RECT : damageClip.getRects()) {
+  //     g_pHyprOpenGL->scissor(&RECT);
+  //     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+  //   }
+  // }
+
+  glDrawArrays(GL_TRIANGLES, 0, 8); // 54
   // // glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
   // save texture to file (for debugging)
-  GLubyte *pixels =
-      new GLubyte[wid * he * 4]; // Assuming RGBA for 4 bytes per pixel
-  glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-  int a = rand();
-  std::string str = "/home/air/tmp/outout_" + std::to_string(a);
-  stbi_write_png(str.c_str(), wid, he, 4, pixels, wid * 4);
-  fb.release();
+  // GLubyte *pixels =
+  //     new GLubyte[wid * he * 4]; // Assuming RGBA for 4 bytes per pixel
+  // glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+  // int a = rand();
+  // std::string str = "/home/air/tmp/outout_" + std::to_string(a);
+  // stbi_write_png(str.c_str(), wid, he, 4, pixels, wid * 4);
+  // // fb.release();
 
   // TODO: do I need to copy the target back into tex.m_iTexID? (is already
   // there right?)
