@@ -32,66 +32,20 @@ const GLchar *vertexSource =
     "    gl_Position = vec4(position.x, position.y, 0.0, 1.0);"
     "}";
 
-// const GLchar *fragmentSource = "#version 330 core\n"
-//                                "in vec2 TexCoord;"
-//                                "out vec4 FragColor;"
-//                                "uniform sampler2D texture0;"
-//                                "void main() {"
-//                                "    vec4 color = texture(texture0,
-//                                TexCoord);" "    color.r = 0.0;" // Remove red
-//                                component "    FragColor = color;"
-//                                "}";
+inline const std::string myTEXVERTSRC = R"#(
+uniform mat3 proj;
+attribute vec2 pos;
+attribute vec2 texcoord;
+varying vec2 v_texcoord;
 
-const GLchar *fragmentSource =
-    "#version 330 core\n"
-    "in vec2 TexCoord;"
-    "out vec4 FragColor;"
-    "uniform sampler2D texture0;"
-    "void main() {"
-    "    vec3 color = texture(texture0, TexCoord).rgb;"
-    "    color.r = 0.0;" // Remove red component
-    "    FragColor = vec4(vec3(1.0 - color), 1.0);"
-    "}";
-
-// glAttachShader(prog, vertCompiled);
-// glAttachShader(prog, fragCompiled);
-// glLinkProgram(prog);
-
-// glDetachShader(prog, vertCompiled);
-// glDetachShader(prog, fragCompiled);
-// glDeleteShader(vertCompiled);
-// glDeleteShader(fragCompiled);
+void main() {
+    gl_Position = vec4(vec3(pos, 1.0), 1.0);
+    v_texcoord = texcoord;
+})#";
 
 class CWindowTransformer : public IWindowTransformer {
 public:
-  CWindowTransformer() {
-    // vertex = glCreateShader(GL_VERTEX_SHADER);
-    // // glShaderSource(shader, 1, (const GLchar **)&shaderSource, nullptr);
-    // glShaderSource(vertex, 1, (const GLchar **)&vertexSource, NULL);
-    // glCompileShader(vertex);
-    // // checkCompileErrors(vertex, "VERTEX");
-    // // fragment Shader
-    // fragment = glCreateShader(GL_FRAGMENT_SHADER);
-    // glShaderSource(fragment, 1, (const GLchar **)&fragmentSource, NULL);
-    // glCompileShader(fragment);
-    // // checkCompileErrors(fragment, "FRAGMENT");
-    // // shader Program
-    // prog = glCreateProgram();
-    // glAttachShader(prog, vertex);
-    // glAttachShader(prog, fragment);
-    // glLinkProgram(prog);
-    // // checkCompileErrors(ID, "PROGRAM");
-    // // delete the shaders as they're linked into our program now and no
-    // // longer
-    // // necessary
-    // glDeleteShader(vertex);
-    // glDeleteShader(fragment);
-    // shader.program = prog;
-    // shader.proj = glGetUniformLocation(prog, "proj");
-    // shader.tex = glGetUniformLocation(prog, "tex");
-    // shader.texAttrib = glGetAttribLocation(prog, "texcoord");
-    // shader.posAttrib = glGetAttribLocation(prog, "pos");
-  }
+  CWindowTransformer() {}
 
   virtual CFramebuffer *transform(CFramebuffer *in);
   virtual void preWindowRender(SRenderData *pRenderData, CFramebuffer *in,
@@ -110,7 +64,9 @@ varying vec2 v_texcoord; // is in 0-1
 uniform sampler2D tex;
 
 void main() {
-    gl_FragColor = texture2D(tex, v_texcoord);
+vec3 color = texture2D(tex, v_texcoord).rgb;
+color.r = 0.5;
+gl_FragColor = vec4(color, 1.0);
 })#";
 
 void CWindowTransformer::preWindowRender(SRenderData *pRenderData,
@@ -128,31 +84,11 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData,
 
   const auto TEXTURE = wlr_surface_get_texture(pRenderData->surface);
   const CTexture &tex = TEXTURE;
-  // 2. compile shaders
-  // vertex = glCreateShader(GL_VERTEX_SHADER);
-  // // glShaderSource(shader, 1, (const GLchar **)&shaderSource, nullptr);
-  // glShaderSource(vertex, 1, (const GLchar **)&vertexSource, NULL);
-  // glCompileShader(vertex);
-  // // checkCompileErrors(vertex, "VERTEX");
-  // // fragment Shader
-  // fragment = glCreateShader(GL_FRAGMENT_SHADER);
-  // glShaderSource(fragment, 1, (const GLchar **)&fragmentSource, NULL);
-  // glCompileShader(fragment);
-  // // checkCompileErrors(fragment, "FRAGMENT");
-  // // shader Program
-  // shader = glCreateProgram();
-  // glAttachShader(shader, vertex);
-  // glAttachShader(shader, fragment);
-  // glLinkProgram(shader);
-  // // checkCompileErrors(ID, "PROGRAM");
-  // // delete the shaders as they're linked into our program now and no longer
-  // // necessary
-  // glDeleteShader(vertex);
-  // glDeleteShader(fragment);
+
   CShader *shader = &g_pHyprOpenGL->m_sWindowShader;
   if (!shader->program) {
     shader->program = g_pHyprOpenGL->createProgram(
-        TEXVERTSRC, myTEXFRAGSRCRGBAPASSTHRU, true);
+        myTEXVERTSRC, myTEXFRAGSRCRGBAPASSTHRU, true);
     shader->proj = glGetUniformLocation(shader->program, "proj");
     shader->tex = glGetUniformLocation(shader->program, "tex");
     shader->texAttrib = glGetAttribLocation(shader->program, "texcoord");
@@ -186,6 +122,12 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData,
   glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
   glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices,
                GL_STATIC_DRAW);
+
+  // glVertexAttribPointer(shader->posAttrib, 2, GL_FLOAT, GL_FALSE, 0,
+  // fullVerts); glVertexAttribPointer(shader->texAttrib, 2, GL_FLOAT, GL_FALSE,
+  // 0, fullVerts); glEnableVertexAttribArray(shader->posAttrib);
+  // glEnableVertexAttribArray(shader->texAttrib);
+
   glEnableVertexAttribArray(0);
   glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *)0);
   glEnableVertexAttribArray(1);
