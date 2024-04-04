@@ -68,6 +68,7 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData,
     fb.alloc(in->m_vSize.x, in->m_vSize.y);
   }
   fb.bind();
+  g_pHyprOpenGL->clear(CColor(0, 0, 0, 0));
 
   const auto TEXTURE = wlr_surface_get_texture(pRenderData->surface);
   const CTexture &tex = TEXTURE;
