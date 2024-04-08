@@ -42,7 +42,7 @@ attribute vec2 texcoord;
 varying vec2 v_texcoord;
 
 void main() {
-    gl_Position = vec4(vec3(pos, 1.0), 1.0);
+    gl_Position = vec4(vec3(pos, 1.0), 1.0); // lol
     v_texcoord = texcoord;
 })#";
 
@@ -85,7 +85,7 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   if (!shader->program)
   {
     shader->program = g_pHyprOpenGL->createProgram(
-        myTEXVERTSRC, myTEXFRAGSRCRGBAPASSTHRU, true);
+        myTEXVERTSRC, TEXFRAGSRCRGBAPASSTHRU, true);
     shader->proj = glGetUniformLocation(shader->program, "proj");
     shader->tex = glGetUniformLocation(shader->program, "tex");
     shader->texAttrib = glGetAttribLocation(shader->program, "texcoord");
@@ -140,7 +140,7 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   glBindTexture(GL_TEXTURE_2D, texColorBuffer);
 
   glTexImage2D(
-      GL_TEXTURE_2D, 0, GL_RGB, wid, he, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+      GL_TEXTURE_2D, 0, GL_RGBA, wid, he, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -159,7 +159,7 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   glBindTexture(GL_TEXTURE_2D, texColorBuffer2);
 
   glTexImage2D(
-      GL_TEXTURE_2D, 0, GL_RGB, wid, he, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+      GL_TEXTURE_2D, 0, GL_RGBA, wid, he, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -169,7 +169,7 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
       GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex.m_iTexID, 0);
 
   glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
-  glClearColor(0.25f, 0.25f, 0.25f, 1.0f);
+  glClearColor(0.25f, 0.25f, 1.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT);
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, tex.m_iTexID);
@@ -187,7 +187,7 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   glDrawArrays(GL_TRIANGLES, 0, 6);
 
   glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer2);
-  glClearColor(0.25f, 0.25f, 0.25f, 1.0f);
+  glClearColor(0.25f, 0.25f, 1.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT);
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, texColorBuffer);
