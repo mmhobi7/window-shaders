@@ -57,29 +57,27 @@ color.r = 0.5;
 gl_FragColor = vec4(color, 1.0);
 })#";
 
-void writeToFile(int wid, int he)
+void writeToFile(int width, int height)
 {
-  GLubyte *pixels = new GLubyte[wid * he * 4];
-  glReadPixels(0, 0, wid, he, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+  GLubyte *pixels = new GLubyte[width * height * 4];
+  glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
   int a = rand();
   std::string str = "/home/aaahh/tmp/outout_" + std::to_string(a);
-  stbi_write_png(str.c_str(), wid, he, 4, pixels, wid * 4);
+  stbi_write_png(str.c_str(), width, height, 4, pixels, width * 4);
 }
 
 void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
 {
   const auto TEXTURE = wlr_surface_get_texture(pRenderData->surface);
   const CTexture &tex = TEXTURE;
-  int wid = tex.m_vSize.x;
-  int he = tex.m_vSize.y;
+  int width = tex.m_vSize.x;
+  int height = tex.m_vSize.y;
 
-  // if (!fb.isAllocated() || fb.m_vSize.x != pRenderData->w ||
-  //     fb.m_vSize.y != pRenderData->h)
-  // {
-  //   fb.release();
-  //   fb.alloc(pRenderData->w, pRenderData->h);
-  // }
-  // fb.bind();
+  if (!fb.isAllocated() || fb.m_vSize == tex.m_vSize)
+  {
+    fb.release();
+    fb.alloc(width, height);
+  }
   // g_pHyprOpenGL->clear(CColor(0, 0, 0, 0));
 
   CShader *shader = &g_pHyprOpenGL->m_sWindowShader;
@@ -94,7 +92,7 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
     std::cout << "GEN SHADER " << std::endl;
   }
 
-  glViewport(0, 0, wid, he);
+  glViewport(0, 0, width, height);
 
   // unsigned int quadVAO, quadVBO;
   // glGenVertexArrays(1, &quadVAO);
@@ -131,26 +129,29 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   glEnableVertexAttribArray(shader->posAttrib);
   glEnableVertexAttribArray(shader->texAttrib);
 
-  GLuint frameBuffer;
-  glGenFramebuffers(1, &frameBuffer);
-  glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
-  glViewport(0, 0, wid, he);
+  // GLuint frameBuffer;
+  // glGenFramebuffers(1, &frameBuffer);
+  // glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+  // glViewport(0, 0, width, height);
 
-  GLuint texColorBuffer;
-  glGenTextures(1, &texColorBuffer);
-  glBindTexture(GL_TEXTURE_2D, texColorBuffer);
+  // GLuint texColorBuffer;
+  // glGenTextures(1, &texColorBuffer);
+  // glBindTexture(GL_TEXTURE_2D, texColorBuffer);
 
-  glTexImage2D(
-      GL_TEXTURE_2D, 0, GL_RGBA, wid, he, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  // glTexImage2D(
+  //     GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-  glFramebufferTexture2D(
-      GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColorBuffer, 0);
+  // glFramebufferTexture2D(
+  //     GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColorBuffer, 0);
 
-  glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+  // glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+  fb.bind();
+  glViewport(0, 0, width, height);
+
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   glClear(GL_COLOR_BUFFER_BIT);
   glActiveTexture(GL_TEXTURE0);
@@ -161,7 +162,7 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   {
     std::cout << "PP" << status << std::endl;
   }
-  glViewport(0, 0, wid, he);
+  glViewport(0, 0, width, height);
   glDrawArrays(GL_TRIANGLES, 0, 6);
 
   glFramebufferTexture2D(
@@ -169,7 +170,7 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   glClear(GL_COLOR_BUFFER_BIT);
   glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, texColorBuffer);
+  glBindTexture(GL_TEXTURE_2D, fb.m_cTex.m_iTexID);
   glUseProgram(shader->program);
   status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
   if (status != GL_FRAMEBUFFER_COMPLETE)
