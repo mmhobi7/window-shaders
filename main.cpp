@@ -23,7 +23,8 @@ inline HANDLE PHANDLE = nullptr;
 // Do NOT change this function.
 APICALL EXPORT std::string PLUGIN_API_VERSION() { return HYPRLAND_API_VERSION; }
 
-class CWindowTransformer : public IWindowTransformer {
+class CWindowTransformer : public IWindowTransformer
+{
 public:
   virtual CFramebuffer *transform(CFramebuffer *in);
   virtual void preWindowRender(SRenderData *pRenderData);
@@ -53,26 +54,33 @@ uniform sampler2D tex;
 void main() {
 vec3 color = texture2D(tex, v_texcoord).rgb;
 color.r = 0.5;
-gl_FragColor = vec4(color, 0.2);
+gl_FragColor = vec4(color, 1.0);
 })#";
 
-void CWindowTransformer::preWindowRender(SRenderData *pRenderData) {
+void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
+{
 
   // oldPos = {(double)pRenderData->x, (double)pRenderData->y};
-
-  if (!fb.isAllocated() || fb.m_vSize.x != pRenderData->w ||
-      fb.m_vSize.y != pRenderData->h) {
-    fb.release();
-    fb.alloc(pRenderData->w, pRenderData->h);
-  }
-  fb.bind();
-  g_pHyprOpenGL->clear(CColor(0, 0, 0, 0));
+  // fprintf(stderr, "OpenGL %s\n", glGetString(GL_VERSION));
 
   const auto TEXTURE = wlr_surface_get_texture(pRenderData->surface);
   const CTexture &tex = TEXTURE;
+  int wid = tex.m_vSize.x;
+  int he = tex.m_vSize.y;
+  GLubyte *pixels = new GLubyte[wid * he * 4];
+
+  // if (!fb.isAllocated() || fb.m_vSize.x != pRenderData->w ||
+  //     fb.m_vSize.y != pRenderData->h)
+  // {
+  //   fb.release();
+  //   fb.alloc(pRenderData->w, pRenderData->h);
+  // }
+  // fb.bind();
+  g_pHyprOpenGL->clear(CColor(0, 0, 0, 0));
 
   CShader *shader = &g_pHyprOpenGL->m_sWindowShader;
-  if (!shader->program) {
+  if (!shader->program)
+  {
     shader->program = g_pHyprOpenGL->createProgram(
         myTEXVERTSRC, myTEXFRAGSRCRGBAPASSTHRU, true);
     shader->proj = glGetUniformLocation(shader->program, "proj");
@@ -88,9 +96,12 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData) {
   // std::cout << pRenderData->h << he << std::endl;
   // int wid = (int)std::round(pRenderData->pWindow->m_vReportedSize.x);
   // int he = (int)std::round(pRenderData->pWindow->m_vReportedSize.x);
-
-  glViewport(0, 0, pRenderData->pWindow->m_vReportedSize.x,
-             pRenderData->pWindow->m_vReportedSize.y);
+  GLint m_viewport[4];
+  glGetIntegerv(GL_VIEWPORT, m_viewport);
+  std::cout << "YER1 " << m_viewport[0] << " " << m_viewport[1] << " " << m_viewport[2] << " " << m_viewport[3] << std::endl;
+  std::cout << "YER2 " << wid << " " << he << " " << std::endl;
+  // glViewport(0, 0, width, height);
+  glViewport(0, 0, wid, he);
 
   // unsigned int quadVAO, quadVBO;
   // glGenVertexArrays(1, &quadVAO);
@@ -100,10 +111,30 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData) {
   // glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices,
   //              GL_STATIC_DRAW);
 
-  glVertexAttribPointer(shader->posAttrib, 2, GL_FLOAT, GL_FALSE, 4,
-                        fanVertsFull);
-  glVertexAttribPointer(shader->texAttrib, 2, GL_FLOAT, GL_FALSE, 4,
-                        fanVertsFull);
+  GLfloat vertices1[] = {// vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
+                         // positions   // texCoords
+                         1.0f, -1.0f,
+                         1.0f, 1.0f,
+                         -1.0f, 1.0f,
+
+                         1.0f, -1.0f,
+                         -1.0f, 1.0f,
+                         -1.0f, -1.0f};
+
+  GLfloat vertices2[] = {// vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
+                         // positions   // texCoords
+                         0.0f, 1.0f,
+                         0.0f, 0.0f,
+                         1.0f, 0.0f,
+
+                         0.0f, 1.0f,
+                         1.0f, 0.0f,
+                         1.0f, 1.0f};
+
+  glVertexAttribPointer(shader->posAttrib, 2, GL_FLOAT, GL_FALSE, 0 * sizeof(float),
+                        vertices1);
+  glVertexAttribPointer(shader->texAttrib, 2, GL_FLOAT, GL_FALSE, 0 * sizeof(float),
+                        vertices2);
   glEnableVertexAttribArray(shader->posAttrib);
   glEnableVertexAttribArray(shader->texAttrib);
 
@@ -143,20 +174,109 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData) {
   // wlr_matrix_multiply(glMatrix, m_RenderData.projection, matrix);
 
   // apply shader
-  glUseProgram(shader->program);
+  // glUseProgram(shader->program);
   // glUniformMatrix3fv(shader->proj, 1, GL_TRUE, glMatrix);
-  glUniform1i(shader->tex, 0);
+  // glUniform1i(shader->tex, 0);
   // glUniform1i(glGetUniformLocation(shader, "texture0"), 0);
 
   // GLuint FFrameBuffer;
   // setup FBO
   // glGenFramebuffers(1, &FFrameBuffer);
   // glBindFramebuffer(GL_FRAMEBUFFER, FFrameBuffer);
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-                         tex.m_iTexID, 0);
+  // glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+  //  tex.m_iTexID, 0);
 
+  // glActiveTexture(GL_TEXTURE0);
+  // glBindTexture(GL_TEXTURE_2D, tex.m_iTexID);
+
+  GLuint frameBuffer;
+  glGenFramebuffers(1, &frameBuffer);
+  glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+  glViewport(0, 0, wid, he);
+
+  GLuint texColorBuffer;
+  glGenTextures(1, &texColorBuffer);
+  glBindTexture(GL_TEXTURE_2D, texColorBuffer);
+
+  glTexImage2D(
+      GL_TEXTURE_2D, 0, GL_RGB, wid, he, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+  glFramebufferTexture2D(
+      GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColorBuffer, 0);
+
+  // glActiveTexture(GL_TEXTURE0);
+  // glBindTexture(GL_TEXTURE_2D, tex.m_iTexID);
+
+  // glUseProgram(shader->program);
+
+  GLuint frameBuffer2;
+  glGenFramebuffers(1, &frameBuffer2);
+  glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer2);
+  glViewport(0, 0, wid, he);
+
+  GLuint texColorBuffer2;
+  glGenTextures(1, &texColorBuffer2);
+  glBindTexture(GL_TEXTURE_2D, texColorBuffer2);
+
+  glTexImage2D(
+      GL_TEXTURE_2D, 0, GL_RGB, wid, he, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+  glFramebufferTexture2D(
+      GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex.m_iTexID, 0);
+
+  glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+  glClearColor(0.25f, 0.25f, 0.25f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT);
   glActiveTexture(GL_TEXTURE0);
-  glBindTexture(tex.m_iTarget, tex.m_iTexID);
+  glBindTexture(GL_TEXTURE_2D, tex.m_iTexID);
+  glUseProgram(shader->program);
+  GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+  if (status != GL_FRAMEBUFFER_COMPLETE)
+  {
+    std::cout << "PP" << status << std::endl;
+  }
+  else
+  {
+    std::cout << "looks good" << std::endl;
+  }
+  glViewport(0, 0, wid, he);
+  glDrawArrays(GL_TRIANGLES, 0, 6);
+
+  // glReadPixels(0, 0, wid, he, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+  // int a = rand();
+  // std::string str = "/home/aaahh/tmp/outout_" + std::to_string(a);
+  // stbi_write_png(str.c_str(), wid, he, 4, pixels, wid * 4);
+
+  glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer2);
+  glClearColor(0.25f, 0.25f, 0.25f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, texColorBuffer);
+  glUseProgram(shader->program);
+  status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+  if (status != GL_FRAMEBUFFER_COMPLETE)
+  {
+    std::cout << "PP2" << status << std::endl;
+  }
+  else
+  {
+    std::cout << "looks good2" << std::endl;
+  }
+  glDrawArrays(GL_TRIANGLES, 0, 6);
+
+  glReadPixels(0, 0, wid, he, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+  int a = rand();
+  std::string str = "/home/aaahh/tmp/outout_" + std::to_string(a);
+  stbi_write_png(str.c_str(), wid, he, 4, pixels, wid * 4);
+
   // glBindTexture(GL_TEXTURE_2D, tex.m_iTexID);
 
   // g_pHyprOpenGL->m_RenderData.clipBox = rg.getExtents();
@@ -182,40 +302,50 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData) {
   //   }
   // }
 
-  glDrawArrays(GL_TRIANGLES, 0, 8); // 54
+  // glDrawArrays(GL_TRIANGLES, 0, 8); // 54
   // // glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
   // save texture to file (for debugging)
-  // GLubyte *pixels =
-  //     new GLubyte[wid * he * 4]; // Assuming RGBA for 4 bytes per pixel
+
+  // GLuint fbo;
+  // glGenFramebuffers(1, &fbo);
+  // glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+  // glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex.m_iTexID, 0);
+  // glBindTexture(GL_TEXTURE_2D, tex.m_iTexID);
+  // glDrawArrays(GL_TRIANGLES, 0, 8);
+
+  // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  // glDeleteFramebuffers(1, &fbo);
+
   // glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-  // int a = rand();
-  // std::string str = "/home/air/tmp/outout_" + std::to_string(a);
-  // stbi_write_png(str.c_str(), wid, he, 4, pixels, wid * 4);
+
   // // fb.release();
 }
 
 CFramebuffer *CWindowTransformer::transform(CFramebuffer *in) { return in; }
 
-static void onNewWindow(void *self, std::any data) {
+static void onNewWindow(void *self, std::any data)
+{
   // data is guaranteed
   auto *const PWINDOW = std::any_cast<CWindow *>(data); // data is guaranteed
 
-  HyprlandAPI::addNotification(PHANDLE, "[window-transparency] start window!",
+  HyprlandAPI::addNotification(PHANDLE, "[window-shaders] start window!",
                                CColor{0.2, 1.0, 0.2, 1.0}, 5000);
 
   PWINDOW->m_vTransformers.push_back(std::make_unique<CWindowTransformer>());
 
-  HyprlandAPI::addNotification(PHANDLE, "[window-transparency] end window",
+  HyprlandAPI::addNotification(PHANDLE, "[window-shaders] end window",
                                CColor{0.2, 1.0, 0.2, 1.0}, 5000);
 }
 
-APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
+APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
+{
   PHANDLE = handle;
 
   const std::string HASH = __hyprland_api_get_hash();
 
-  if (HASH != GIT_COMMIT_HASH) {
+  if (HASH != GIT_COMMIT_HASH)
+  {
     HyprlandAPI::addNotification(
         PHANDLE,
         "[hyprbars] Failure in initialization: Version mismatch (headers ver "
@@ -226,25 +356,28 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
 
   HyprlandAPI::registerCallbackDynamic(
       PHANDLE, "openWindow",
-      [&](void *self, SCallbackInfo &info, std::any data) {
+      [&](void *self, SCallbackInfo &info, std::any data)
+      {
         onNewWindow(self, data);
       });
 
   HyprlandAPI::addNotification(
-      PHANDLE, "[window-transparency] Initialized successfully!",
+      PHANDLE, "[window-shaders] Initialized successfully!",
       CColor{0.2, 1.0, 0.2, 1.0}, 5000);
 
-  return {"window-transparency", "Apply shaders on each window", "M", "1.0"};
+  return {"window-shaders", "Apply shaders on each window", "M", "1.0"};
 }
 
-APICALL EXPORT void PLUGIN_EXIT() {
-  for (auto &w : g_pCompositor->m_vWindows) {
+APICALL EXPORT void PLUGIN_EXIT()
+{
+  for (auto &w : g_pCompositor->m_vWindows)
+  {
     std::erase_if(
         w->m_vTransformers,
-        [&](const std::unique_ptr<IWindowTransformer> &other) {
-          return std::find_if(ptrs.begin(), ptrs.end(), [&](const auto &p) {
-                   return static_cast<IWindowTransformer *>(p) == other.get();
-                 }) != ptrs.end();
+        [&](const std::unique_ptr<IWindowTransformer> &other)
+        {
+          return std::find_if(ptrs.begin(), ptrs.end(), [&](const auto &p)
+                              { return static_cast<IWindowTransformer *>(p) == other.get(); }) != ptrs.end();
         });
   }
 }
