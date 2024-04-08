@@ -35,6 +35,8 @@ private:
 
 std::vector<CWindowTransformer *> ptrs;
 
+CShader shader;
+
 inline const std::string myTEXVERTSRC = R"#(
 uniform mat3 proj;
 attribute vec2 pos;
@@ -79,15 +81,15 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
     fb.alloc(windowTexture.m_vSize.x, windowTexture.m_vSize.y);
   }
 
-  CShader *shader = &g_pHyprOpenGL->m_sWindowShader;
-  if (!shader->program)
+  // CShader *shader = &g_pHyprOpenGL->m_sWindowShader;
+  if (!shader.program)
   {
-    shader->program = g_pHyprOpenGL->createProgram(
+    shader.program = g_pHyprOpenGL->createProgram(
         myTEXVERTSRC, myTEXFRAGSRCRGBAPASSTHRU, true);
-    shader->proj = glGetUniformLocation(shader->program, "proj");
-    shader->tex = glGetUniformLocation(shader->program, "tex");
-    shader->texAttrib = glGetAttribLocation(shader->program, "texcoord");
-    shader->posAttrib = glGetAttribLocation(shader->program, "pos");
+    shader.proj = glGetUniformLocation(shader.program, "proj");
+    shader.tex = glGetUniformLocation(shader.program, "tex");
+    shader.texAttrib = glGetAttribLocation(shader.program, "texcoord");
+    shader.posAttrib = glGetAttribLocation(shader.program, "pos");
     std::cout << "Shader Generated!!! " << std::endl;
   }
 
@@ -108,10 +110,10 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
                     -1.0f, 1.0f, 0.0f, 1.0f,
                     -1.0f, -1.0f, 0.0f, 0.0f};
 
-  glVertexAttribPointer(shader->posAttrib, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), vert);
-  glVertexAttribPointer(shader->texAttrib, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), &vert[2]);
-  glEnableVertexAttribArray(shader->posAttrib);
-  glEnableVertexAttribArray(shader->texAttrib);
+  glVertexAttribPointer(shader.posAttrib, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), vert);
+  glVertexAttribPointer(shader.texAttrib, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), &vert[2]);
+  glEnableVertexAttribArray(shader.posAttrib);
+  glEnableVertexAttribArray(shader.texAttrib);
 
   glBindFramebuffer(GL_FRAMEBUFFER, fb.m_iFb);
   glViewport(0, 0, width, height);
@@ -120,7 +122,7 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   glClear(GL_COLOR_BUFFER_BIT);
   glBindTexture(GL_TEXTURE_2D, windowTexture.m_iTexID);
-  glUseProgram(shader->program);
+  glUseProgram(shader.program);
   glDrawArrays(GL_TRIANGLES, 0, 6);
 
   // writeToFile(width, height);
