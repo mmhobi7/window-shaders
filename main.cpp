@@ -42,7 +42,7 @@ attribute vec2 texcoord;
 varying vec2 v_texcoord;
 
 void main() {
-    gl_Position = vec4(vec3(pos, 1.0), 1.0); // lol
+    gl_Position = vec4(pos, 1.0, 1.0);
     v_texcoord = texcoord;
 })#";
 
@@ -52,9 +52,9 @@ varying vec2 v_texcoord; // is in 0-1
 uniform sampler2D tex;
 
 void main() {
-vec3 color = texture2D(tex, v_texcoord).rgb;
+vec4 color = texture2D(tex, v_texcoord).rgba;
 color.r = 0.5;
-gl_FragColor = vec4(color, 1.0);
+gl_FragColor = color;
 })#";
 
 void writeToFile(int wid, int he)
@@ -73,12 +73,11 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   int wid = tex.m_vSize.x;
   int he = tex.m_vSize.y;
 
-  // if (!fb.isAllocated() || fb.m_vSize.x != pRenderData->w ||
-  //     fb.m_vSize.y != pRenderData->h)
-  // {
-  //   fb.release();
-  //   fb.alloc(pRenderData->w, pRenderData->h);
-  // }
+  if (!fb.isAllocated() || fb.m_vSize != tex.m_vSize)
+  {
+    fb.release();
+    fb.alloc(tex.m_vSize.x, tex.m_vSize.y);
+  }
   // fb.bind();
   // g_pHyprOpenGL->clear(CColor(0, 0, 0, 0));
 
@@ -86,7 +85,7 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   if (!shader->program)
   {
     shader->program = g_pHyprOpenGL->createProgram(
-        myTEXVERTSRC, TEXFRAGSRCRGBAPASSTHRU, true);
+        myTEXVERTSRC, myTEXFRAGSRCRGBAPASSTHRU, true);
     shader->proj = glGetUniformLocation(shader->program, "proj");
     shader->tex = glGetUniformLocation(shader->program, "tex");
     shader->texAttrib = glGetAttribLocation(shader->program, "texcoord");
@@ -131,9 +130,10 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   glEnableVertexAttribArray(shader->posAttrib);
   glEnableVertexAttribArray(shader->texAttrib);
 
-  GLuint frameBuffer;
-  glGenFramebuffers(1, &frameBuffer);
-  glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+  // GLuint frameBuffer;
+  // glGenFramebuffers(1, &frameBuffer);
+  // glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+  glBindFramebuffer(GL_FRAMEBUFFER, fb.m_iFb);
   glViewport(0, 0, wid, he);
 
   GLuint texColorBuffer;
@@ -150,7 +150,9 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   glFramebufferTexture2D(
       GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColorBuffer, 0);
 
-  glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+  // glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, fb.m_iFb);
+
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   glClear(GL_COLOR_BUFFER_BIT);
   glActiveTexture(GL_TEXTURE0);
