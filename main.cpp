@@ -30,7 +30,9 @@ public:
   virtual void preWindowRender(SRenderData *pRenderData);
 
 private:
+  int iters = 0;
   CFramebuffer fb;
+  CFramebuffer fb2;
 };
 
 std::vector<CWindowTransformer *> ptrs;
@@ -52,39 +54,42 @@ varying vec2 v_texcoord; // is in 0-1
 uniform sampler2D tex;
 
 void main() {
-vec3 color = texture2D(tex, v_texcoord).rgb;
+vec4 color = texture2D(tex, v_texcoord).rgba;
 color.r = 0.5;
-gl_FragColor = vec4(color, 1.0);
+gl_FragColor = color;
 })#";
 
-void writeToFile(int width, int height)
+void writeToFile(int width, int height, std::string filename,  int iters)
 {
   GLubyte *pixels = new GLubyte[width * height * 4];
   glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-  int a = rand();
-  std::string str = "/home/aaahh/tmp/outout_" + std::to_string(a);
+  // int a = rand();
+  std::string str = "/home/aaahh/tmp/outout_"+ std::to_string(iters)+filename ;
   stbi_write_png(str.c_str(), width, height, 4, pixels, width * 4);
 }
 
 void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
 {
-  const auto TEXTURE = wlr_surface_get_texture(pRenderData->surface);
-  const CTexture &tex = TEXTURE;
-  int width = tex.m_vSize.x;
-  int height = tex.m_vSize.y;
+  // static CFramebuffer fb;
 
-  if (!fb.isAllocated() || fb.m_vSize == tex.m_vSize)
+  const auto TEXTURE = wlr_surface_get_texture(pRenderData->surface);
+  const CTexture &windowTexture = TEXTURE;
+  int width = windowTexture.m_vSize.x;
+  int height = windowTexture.m_vSize.y;
+
+  if (!fb.isAllocated() || fb.m_vSize == windowTexture.m_vSize)
   {
     fb.release();
+    fb2.release();
     fb.alloc(width, height);
+    fb2.alloc(width, height);
   }
-  // g_pHyprOpenGL->clear(CColor(0, 0, 0, 0));
 
   CShader *shader = &g_pHyprOpenGL->m_sWindowShader;
   if (!shader->program)
   {
     shader->program = g_pHyprOpenGL->createProgram(
-        myTEXVERTSRC, TEXFRAGSRCRGBAPASSTHRU, true);
+        myTEXVERTSRC, myTEXFRAGSRCRGBAPASSTHRU, true);
     shader->proj = glGetUniformLocation(shader->program, "proj");
     shader->tex = glGetUniformLocation(shader->program, "tex");
     shader->texAttrib = glGetAttribLocation(shader->program, "texcoord");
@@ -92,7 +97,7 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
     std::cout << "GEN SHADER " << std::endl;
   }
 
-  glViewport(0, 0, width, height);
+  // glViewport(0, 0, width, height);
 
   // unsigned int quadVAO, quadVBO;
   // glGenVertexArrays(1, &quadVAO);
@@ -101,6 +106,11 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   // glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
   // glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices,
   //              GL_STATIC_DRAW);
+
+  // fb.bind();
+  glBindFramebuffer(GL_FRAMEBUFFER, fb.m_iFb);
+  glViewport(0, 0, width, height);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fb.m_cTex.m_iTexID, 0);
 
   GLfloat vertices1[] = {// vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
                          // positions   // texCoords
@@ -129,55 +139,40 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   glEnableVertexAttribArray(shader->posAttrib);
   glEnableVertexAttribArray(shader->texAttrib);
 
-  // GLuint frameBuffer;
-  // glGenFramebuffers(1, &frameBuffer);
-  // glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
   // glViewport(0, 0, width, height);
 
-  // GLuint texColorBuffer;
-  // glGenTextures(1, &texColorBuffer);
-  // glBindTexture(GL_TEXTURE_2D, texColorBuffer);
-
-  // glTexImage2D(
-  //     GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-  // glFramebufferTexture2D(
-  //     GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColorBuffer, 0);
-
-  // glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
-  fb.bind();
-  glViewport(0, 0, width, height);
-
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   glClear(GL_COLOR_BUFFER_BIT);
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, tex.m_iTexID);
+  glBindTexture(GL_TEXTURE_2D, windowTexture.m_iTexID);
   glUseProgram(shader->program);
-  GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-  if (status != GL_FRAMEBUFFER_COMPLETE)
-  {
-    std::cout << "PP" << status << std::endl;
-  }
-  glViewport(0, 0, width, height);
+  // GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+  // if (status != GL_FRAMEBUFFER_COMPLETE)
+  // {
+  //   std::cout << "FRAMEBUFFER INCOMPLETE" << status << std::endl;
+  // }
   glDrawArrays(GL_TRIANGLES, 0, 6);
+  iters++;
+  writeToFile(width, height, "a", iters);
 
-  glFramebufferTexture2D(
-      GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex.m_iTexID, 0);
+
+
+
+  glBindFramebuffer(GL_FRAMEBUFFER, fb2.m_iFb);
+  glViewport(0, 0, width, height);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, windowTexture.m_iTexID, 0);  
+  glVertexAttribPointer(shader->posAttrib, 2, GL_FLOAT, GL_FALSE, 0 * sizeof(float),
+                        vertices1);
+  glVertexAttribPointer(shader->texAttrib, 2, GL_FLOAT, GL_FALSE, 0 * sizeof(float),
+                        vertices2);
+  glEnableVertexAttribArray(shader->posAttrib);
+  glEnableVertexAttribArray(shader->texAttrib);
+
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   glClear(GL_COLOR_BUFFER_BIT);
-  glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, fb.m_cTex.m_iTexID);
   glUseProgram(shader->program);
-  status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-  if (status != GL_FRAMEBUFFER_COMPLETE)
-  {
-    std::cout << "PP2" << status << std::endl;
-  }
   glDrawArrays(GL_TRIANGLES, 0, 6);
+  writeToFile(width, height, "b", iters);
 }
 
 CFramebuffer *CWindowTransformer::transform(CFramebuffer *in) { return in; }
