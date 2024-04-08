@@ -57,7 +57,8 @@ color.r = 0.5;
 gl_FragColor = vec4(color, 1.0);
 })#";
 
-void writeToFile(int wid, int he){
+void writeToFile(int wid, int he)
+{
   GLubyte *pixels = new GLubyte[wid * he * 4];
   glReadPixels(0, 0, wid, he, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
   int a = rand();
@@ -92,7 +93,7 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
     shader->posAttrib = glGetAttribLocation(shader->program, "pos");
     std::cout << "GEN SHADER " << std::endl;
   }
-  
+
   glViewport(0, 0, wid, he);
 
   // unsigned int quadVAO, quadVBO;
@@ -149,27 +150,8 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   glFramebufferTexture2D(
       GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColorBuffer, 0);
 
-  GLuint frameBuffer2;
-  glGenFramebuffers(1, &frameBuffer2);
-  glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer2);
-  glViewport(0, 0, wid, he);
-
-  GLuint texColorBuffer2;
-  glGenTextures(1, &texColorBuffer2);
-  glBindTexture(GL_TEXTURE_2D, texColorBuffer2);
-
-  glTexImage2D(
-      GL_TEXTURE_2D, 0, GL_RGBA, wid, he, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-  glFramebufferTexture2D(
-      GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex.m_iTexID, 0);
-
   glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
-  glClearColor(0.25f, 0.25f, 1.0f, 1.0f);
+  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   glClear(GL_COLOR_BUFFER_BIT);
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, tex.m_iTexID);
@@ -179,15 +161,12 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   {
     std::cout << "PP" << status << std::endl;
   }
-  else
-  {
-    std::cout << "looks good" << std::endl;
-  }
   glViewport(0, 0, wid, he);
   glDrawArrays(GL_TRIANGLES, 0, 6);
 
-  glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer2);
-  glClearColor(0.25f, 0.25f, 1.0f, 1.0f);
+  glFramebufferTexture2D(
+      GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex.m_iTexID, 0);
+  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   glClear(GL_COLOR_BUFFER_BIT);
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, texColorBuffer);
@@ -196,10 +175,6 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   if (status != GL_FRAMEBUFFER_COMPLETE)
   {
     std::cout << "PP2" << status << std::endl;
-  }
-  else
-  {
-    std::cout << "looks good2" << std::endl;
   }
   glDrawArrays(GL_TRIANGLES, 0, 6);
 }
@@ -233,7 +208,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         "[window-shaders] Failure in initialization: Version mismatch (headers ver "
         "is not equal to running hyprland ver)",
         CColor{1.0, 0.2, 0.2, 1.0}, 5000);
-    throw std::runtime_error("[hb] Version mismatch");
+    throw std::runtime_error("[window-shaders] Version mismatch");
   }
 
   HyprlandAPI::registerCallbackDynamic(
