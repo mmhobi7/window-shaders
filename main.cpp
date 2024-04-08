@@ -78,8 +78,7 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
     fb.release();
     fb.alloc(tex.m_vSize.x, tex.m_vSize.y);
   }
-  // fb.bind();
-  // g_pHyprOpenGL->clear(CColor(0, 0, 0, 0));
+  // fb.bind(); GL_DRAW_FRAMEBUFFER
 
   CShader *shader = &g_pHyprOpenGL->m_sWindowShader;
   if (!shader->program)
@@ -103,8 +102,7 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   // glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices,
   //              GL_STATIC_DRAW);
 
-  GLfloat vertices1[] = {// vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
-                         // positions   // texCoords
+  GLfloat positions[] = {// vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
                          1.0f, -1.0f,
                          1.0f, 1.0f,
                          -1.0f, 1.0f,
@@ -113,8 +111,7 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
                          -1.0f, 1.0f,
                          -1.0f, -1.0f};
 
-  GLfloat vertices2[] = {// vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
-                         // positions   // texCoords
+  GLfloat texCoords[] = {// vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
                          0.0f, 1.0f,
                          0.0f, 0.0f,
                          1.0f, 0.0f,
@@ -124,45 +121,25 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
                          1.0f, 1.0f};
 
   glVertexAttribPointer(shader->posAttrib, 2, GL_FLOAT, GL_FALSE, 0 * sizeof(float),
-                        vertices1);
+                        positions);
   glVertexAttribPointer(shader->texAttrib, 2, GL_FLOAT, GL_FALSE, 0 * sizeof(float),
-                        vertices2);
+                        texCoords);
   glEnableVertexAttribArray(shader->posAttrib);
   glEnableVertexAttribArray(shader->texAttrib);
 
-  // GLuint frameBuffer;
-  // glGenFramebuffers(1, &frameBuffer);
-  // glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
   glBindFramebuffer(GL_FRAMEBUFFER, fb.m_iFb);
   glViewport(0, 0, wid, he);
 
-  GLuint texColorBuffer;
-  glGenTextures(1, &texColorBuffer);
-  glBindTexture(GL_TEXTURE_2D, texColorBuffer);
-
-  glTexImage2D(
-      GL_TEXTURE_2D, 0, GL_RGBA, wid, he, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
   glFramebufferTexture2D(
-      GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColorBuffer, 0);
+      GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fb.m_cTex.m_iTexID, 0);
 
-  // glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, fb.m_iFb);
+  glBindFramebuffer(GL_FRAMEBUFFER, fb.m_iFb);
 
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   glClear(GL_COLOR_BUFFER_BIT);
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, tex.m_iTexID);
   glUseProgram(shader->program);
-  GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-  if (status != GL_FRAMEBUFFER_COMPLETE)
-  {
-    std::cout << "PP" << status << std::endl;
-  }
   glViewport(0, 0, wid, he);
   glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -171,13 +148,8 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   glClear(GL_COLOR_BUFFER_BIT);
   glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, texColorBuffer);
+  glBindTexture(GL_TEXTURE_2D, fb.m_cTex.m_iTexID);
   glUseProgram(shader->program);
-  status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-  if (status != GL_FRAMEBUFFER_COMPLETE)
-  {
-    std::cout << "PP2" << status << std::endl;
-  }
   glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
