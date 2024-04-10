@@ -31,15 +31,28 @@ public:
 
 private:
   CFramebuffer fb;
-  GLfloat identityMatrix[9] = {
-      1.0f, 0.0f, 0.0f,
-      0.0f, 1.0f, 0.0f,
-      0.0f, 0.0f, 1.0f};
+  int width;
+  int height;
 };
 
 std::vector<CWindowTransformer *> ptrs;
 
 CShader shader;
+
+GLfloat identityMatrix[9] = {
+    1.0f, 0.0f, 0.0f,
+    0.0f, 1.0f, 0.0f,
+    0.0f, 0.0f, 1.0f};
+
+// vertex attributes for a quad
+GLfloat vert[] = {
+    1.0f, -1.0f, 1.0f, 0.0f,
+    1.0f, 1.0f, 1.0f, 1.0f,
+    -1.0f, 1.0f, 0.0f, 1.0f,
+
+    1.0f, -1.0f, 1.0f, 0.0f,
+    -1.0f, 1.0f, 0.0f, 1.0f,
+    -1.0f, -1.0f, 0.0f, 0.0f};
 
 inline const std::string myTEXVERTSRC = R"#(
 uniform mat3 proj;
@@ -59,7 +72,7 @@ uniform sampler2D tex;
 
 void main() {
     vec4 color = texture2D(tex, v_texcoord).rgba;
-    color.a = 0.5;
+    color.r = 0.5;
     gl_FragColor = color;
 })#";
 
@@ -76,13 +89,14 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
 {
   const auto TEXTURE = wlr_surface_get_texture(pRenderData->surface);
   const CTexture &windowTexture = TEXTURE;
-  int width = windowTexture.m_vSize.x;
-  int height = windowTexture.m_vSize.y;
+
+  width = windowTexture.m_vSize.x;
+  height = windowTexture.m_vSize.y;
 
   if (!fb.isAllocated() || fb.m_vSize != windowTexture.m_vSize)
   {
     fb.release();
-    fb.alloc(windowTexture.m_vSize.x, windowTexture.m_vSize.y);
+    fb.alloc(width, height);
   }
 
   CShader *passThroughShader = &g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shPASSTHRURGBA;
@@ -94,7 +108,7 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
     shader.tex = glGetUniformLocation(shader.program, "tex");
     shader.texAttrib = glGetAttribLocation(shader.program, "texcoord");
     shader.posAttrib = glGetAttribLocation(shader.program, "pos");
-    std::cout << "Shader Generated!!! " << std::endl;
+    std::cout << "[window-shader]: Shader Generated!!! " << std::endl;
   }
 
   // unsigned int quadVAO, quadVBO;
@@ -105,6 +119,7 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   // glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices,
   //              GL_STATIC_DRAW);
 
+  // ping: render with user's shader
   glBindFramebuffer(GL_FRAMEBUFFER, fb.m_iFb);
   glViewport(0, 0, width, height);
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fb.m_cTex.m_iTexID, 0);
@@ -113,24 +128,17 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   glBindTexture(GL_TEXTURE_2D, windowTexture.m_iTexID);
   glUseProgram(shader.program);
 
-  GLfloat vert[] = {// vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
-                    1.0f, -1.0f, 1.0f, 0.0f,
-                    1.0f, 1.0f, 1.0f, 1.0f,
-                    -1.0f, 1.0f, 0.0f, 1.0f,
-
-                    1.0f, -1.0f, 1.0f, 0.0f,
-                    -1.0f, 1.0f, 0.0f, 1.0f,
-                    -1.0f, -1.0f, 0.0f, 0.0f};
-
   glVertexAttribPointer(shader.posAttrib, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), vert);
   glVertexAttribPointer(shader.texAttrib, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), &vert[2]);
   glEnableVertexAttribArray(shader.posAttrib);
   glEnableVertexAttribArray(shader.texAttrib);
   glUniformMatrix3fv(shader.proj, 1, GL_FALSE, identityMatrix);
+
   glDrawArrays(GL_TRIANGLES, 0, 6);
 
   // writeToFile(width, height);
 
+  // pong: write back to window texture
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, windowTexture.m_iTexID, 0);
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   glClear(GL_COLOR_BUFFER_BIT);
