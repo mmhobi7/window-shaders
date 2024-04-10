@@ -31,6 +31,10 @@ public:
 
 private:
   CFramebuffer fb;
+  GLfloat identityMatrix[9] = {
+      1.0f, 0.0f, 0.0f,
+      0.0f, 1.0f, 0.0f,
+      0.0f, 0.0f, 1.0f};
 };
 
 std::vector<CWindowTransformer *> ptrs;
@@ -44,7 +48,7 @@ attribute vec2 texcoord;
 varying vec2 v_texcoord;
 
 void main() {
-    gl_Position = vec4(pos, 1.0, 1.0);
+    gl_Position = vec4(proj * vec3(pos, 1.0), 1.0);
     v_texcoord = texcoord;
 })#";
 
@@ -54,9 +58,9 @@ varying vec2 v_texcoord; // is in 0-1
 uniform sampler2D tex;
 
 void main() {
-vec4 color = texture2D(tex, v_texcoord).rgba;
-color.r = 0.5;
-gl_FragColor = color;
+    vec4 color = texture2D(tex, v_texcoord).rgba;
+    color.a = 0.5;
+    gl_FragColor = color;
 })#";
 
 void writeToFile(int width, int height)
@@ -81,11 +85,11 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
     fb.alloc(windowTexture.m_vSize.x, windowTexture.m_vSize.y);
   }
 
-  // CShader *shader = &g_pHyprOpenGL->m_sWindowShader;
+  CShader *passThroughShader = &g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shPASSTHRURGBA;
   if (!shader.program)
   {
     shader.program = g_pHyprOpenGL->createProgram(
-        myTEXVERTSRC, myTEXFRAGSRCRGBAPASSTHRU, true);
+        myTEXVERTSRC, myTEXFRAGSRCRGBAPASSTHRU, false);
     shader.proj = glGetUniformLocation(shader.program, "proj");
     shader.tex = glGetUniformLocation(shader.program, "tex");
     shader.texAttrib = glGetAttribLocation(shader.program, "texcoord");
@@ -101,6 +105,14 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   // glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices,
   //              GL_STATIC_DRAW);
 
+  glBindFramebuffer(GL_FRAMEBUFFER, fb.m_iFb);
+  glViewport(0, 0, width, height);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fb.m_cTex.m_iTexID, 0);
+  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+  glClear(GL_COLOR_BUFFER_BIT);
+  glBindTexture(GL_TEXTURE_2D, windowTexture.m_iTexID);
+  glUseProgram(shader.program);
+
   GLfloat vert[] = {// vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
                     1.0f, -1.0f, 1.0f, 0.0f,
                     1.0f, 1.0f, 1.0f, 1.0f,
@@ -114,15 +126,7 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   glVertexAttribPointer(shader.texAttrib, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), &vert[2]);
   glEnableVertexAttribArray(shader.posAttrib);
   glEnableVertexAttribArray(shader.texAttrib);
-
-  glBindFramebuffer(GL_FRAMEBUFFER, fb.m_iFb);
-  glViewport(0, 0, width, height);
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fb.m_cTex.m_iTexID, 0);
-
-  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-  glClear(GL_COLOR_BUFFER_BIT);
-  glBindTexture(GL_TEXTURE_2D, windowTexture.m_iTexID);
-  glUseProgram(shader.program);
+  glUniformMatrix3fv(shader.proj, 1, GL_FALSE, identityMatrix);
   glDrawArrays(GL_TRIANGLES, 0, 6);
 
   // writeToFile(width, height);
@@ -131,6 +135,9 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   glClear(GL_COLOR_BUFFER_BIT);
   glBindTexture(GL_TEXTURE_2D, fb.m_cTex.m_iTexID);
+  glUseProgram(passThroughShader->program);
+  glUniformMatrix3fv(passThroughShader->proj, 1, GL_FALSE, identityMatrix);
+
   glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
