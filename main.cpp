@@ -23,9 +23,62 @@ inline HANDLE PHANDLE = nullptr;
 // Do NOT change this function.
 APICALL EXPORT std::string PLUGIN_API_VERSION() { return HYPRLAND_API_VERSION; }
 
+inline const std::string myTEXVERTSRC = R"#(
+uniform mat3 proj;
+attribute vec2 pos;
+attribute vec2 texcoord;
+varying vec2 v_texcoord;
+
+void main() {
+    gl_Position = vec4(proj * vec3(pos, 1.0), 1.0);
+    v_texcoord = texcoord;
+})#";
+
+inline const std::string myTEXFRAGSRCRGBAPASSTHRU = R"#(
+precision highp float;
+varying vec2 v_texcoord; // is in 0-1
+uniform sampler2D tex;
+
+void main() {
+    vec4 color = texture2D(tex, v_texcoord).rgba;
+    color.r = 0.5;
+    gl_FragColor = color;
+})#";
+
+std::string loadShader(std::string path)
+{
+  if (path == "" || path == STRVAL_EMPTY)
+    return "";
+
+  std::ifstream infile(absolutePath(path, g_pConfigManager->getConfigDir()));
+
+  if (!infile.good())
+  {
+    g_pConfigManager->addParseError("[window-shaders]: Screen shader parser: Screen shader path not found");
+    return "";
+  }
+
+  std::string shader((std::istreambuf_iterator<char>(infile)), (std::istreambuf_iterator<char>()));
+  return shader;
+}
+
 class CWindowTransformer : public IWindowTransformer
 {
 public:
+  CWindowTransformer(std::string fragmentShader, std::string vertexShader)
+  {
+    std::string fragShader = loadShader(fragmentShader);
+    if (!fragShader.empty())
+    {
+      this->fragmentShader = fragShader;
+    }
+
+    std::string vertShader = loadShader(vertexShader);
+    if (!vertShader.empty())
+    {
+      vertShader = vertShader;
+    }
+  }
   virtual CFramebuffer *transform(CFramebuffer *in);
   virtual void preWindowRender(SRenderData *pRenderData);
 
@@ -33,6 +86,8 @@ private:
   CFramebuffer fb;
   int width;
   int height;
+  std::string fragmentShader = myTEXVERTSRC;
+  std::string vertexShader = myTEXFRAGSRCRGBAPASSTHRU;
 };
 
 std::vector<CWindowTransformer *> ptrs;
@@ -62,28 +117,6 @@ public:
 
 CShaderEXT shader;
 
-inline const std::string myTEXVERTSRC = R"#(
-uniform mat3 proj;
-attribute vec2 pos;
-attribute vec2 texcoord;
-varying vec2 v_texcoord;
-
-void main() {
-    gl_Position = vec4(proj * vec3(pos, 1.0), 1.0);
-    v_texcoord = texcoord;
-})#";
-
-inline const std::string myTEXFRAGSRCRGBAPASSTHRU = R"#(
-precision highp float;
-varying vec2 v_texcoord; // is in 0-1
-uniform sampler2D tex;
-
-void main() {
-    vec4 color = texture2D(tex, v_texcoord).rgba;
-    color.r = 0.5;
-    gl_FragColor = color;
-})#";
-
 void writeToFile(int width, int height)
 {
   GLubyte *pixels = new GLubyte[width * height * 4];
@@ -91,6 +124,30 @@ void writeToFile(int width, int height)
   int a = rand();
   std::string str = "/home/aaahh/tmp/outout_" + std::to_string(a);
   stbi_write_png(str.c_str(), width, height, 4, pixels, width * 4);
+}
+
+// std::string convertToString(const char *const *const &strPtrPtr)
+// {
+//   const char *const strPtr = *strPtrPtr;
+//   return std::string(strPtr);
+// }
+
+std::string convertToString(std::string strPtrPtr)
+{
+  // // if ((std::string)strPtrPtr.length())
+  std::cerr << "Error: eee is null." << std::endl;
+  HyprlandAPI::addNotification(
+      PHANDLE, "[window-shaders]" + strPtrPtr,
+      CColor{0.2, 1.0, 0.2, 1.0}, 5000);
+  // if (strPtrPtr == nullptr)
+  // {
+  //   std::cerr << "Error: strPtrPtr is null." << std::endl;
+  //   return ""; // Return an empty string or handle the error as appropriate
+  // }
+  // std::cerr << "Error: eee3 is null." << std::endl;
+  // std::string yer =  strPtrPtr; // Potential issue here
+  // std::cerr << yer << "ww"<< std::endl;
+  return strPtrPtr;
 }
 
 void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
@@ -167,7 +224,16 @@ static void onNewWindow(void *self, std::any data)
 {
   // data is guaranteed
   auto *const PWINDOW = std::any_cast<CWindow *>(data);
-  PWINDOW->m_vTransformers.push_back(std::make_unique<CWindowTransformer>());
+  static auto *const PCLASS = (Hyprlang::STRING const *)HyprlandAPI::getConfigValue(PHANDLE, "plugin:window-shaders:class")->getDataStaticPtr();
+  if (((std::string)*PCLASS).length() == 0 || // select all windows if not specified
+      (g_pCompositor->m_pLastWindow && g_pCompositor->m_pLastWindow->m_szInitialClass == *PCLASS && g_pCompositor->m_pLastMonitor))
+  {
+    static auto *const PFRAGMENTSHADER = (Hyprlang::STRING const *)HyprlandAPI::getConfigValue(PHANDLE, "plugin:fragment-shader:class")->getDataStaticPtr();
+    static auto *const PVERTEXSHADER = (Hyprlang::STRING const *)HyprlandAPI::getConfigValue(PHANDLE, "plugin:vertex-shader:class")->getDataStaticPtr();
+
+    // TODO pass PFRAGMENTSHADER and PVERTEXSHADER
+    PWINDOW->m_vTransformers.push_back(std::make_unique<CWindowTransformer>("", ""));
+  }
 }
 
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
@@ -185,6 +251,10 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         CColor{1.0, 0.2, 0.2, 1.0}, 5000);
     throw std::runtime_error("[window-shaders] Version mismatch");
   }
+
+  HyprlandAPI::addConfigValue(PHANDLE, "plugin:window-shaders:class", Hyprlang::STRING{""});
+  HyprlandAPI::addConfigValue(PHANDLE, "plugin:window-shaders:fragment-shader", Hyprlang::STRING{"br"});
+  HyprlandAPI::addConfigValue(PHANDLE, "plugin:window-shaders:vertex-shader", Hyprlang::STRING{"ee"});
 
   HyprlandAPI::registerCallbackDynamic(
       PHANDLE, "openWindow",
