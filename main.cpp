@@ -126,21 +126,21 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
     glVertexAttribPointer(shader.texAttrib, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)(2 * sizeof(GLfloat)));
     glEnableVertexAttribArray(shader.posAttrib);
     glEnableVertexAttribArray(shader.texAttrib);
-    std::cout << "[window-shader]: Shader Generated!!! " << std::endl;
+
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
 
+  glViewport(0, 0, width, height);
   glBindVertexArray(shader.quadVAO);
-  glBindBuffer(GL_ARRAY_BUFFER, shader.quadVBO);
+  glBindFramebuffer(GL_FRAMEBUFFER, fb.m_iFb);
 
   // ping: render with user's shader
-  glBindFramebuffer(GL_FRAMEBUFFER, fb.m_iFb);
-  glViewport(0, 0, width, height);
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fb.m_cTex.m_iTexID, 0);
-  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   glClear(GL_COLOR_BUFFER_BIT);
   glBindTexture(GL_TEXTURE_2D, windowTexture.m_iTexID);
-  glUseProgram(shader.program);
 
+  glUseProgram(shader.program);
   glUniformMatrix3fv(shader.proj, 1, GL_FALSE, identityMatrix);
 
   glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -149,16 +149,15 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
 
   // pong: write back to window texture
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, windowTexture.m_iTexID, 0);
-  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   glClear(GL_COLOR_BUFFER_BIT);
   glBindTexture(GL_TEXTURE_2D, fb.m_cTex.m_iTexID);
+
   glUseProgram(passThroughShader->program);
   glUniformMatrix3fv(passThroughShader->proj, 1, GL_FALSE, identityMatrix);
 
   glDrawArrays(GL_TRIANGLES, 0, 6);
 
   // unbind buffer and array
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindVertexArray(0);
 }
 
