@@ -37,15 +37,12 @@ private:
 
 std::vector<CWindowTransformer *> ptrs;
 
-CShader shader;
-
 GLfloat identityMatrix[9] = {
     1.0f, 0.0f, 0.0f,
     0.0f, 1.0f, 0.0f,
     0.0f, 0.0f, 1.0f};
 
-// vertex attributes for a quad
-GLfloat vert[] = {
+GLfloat quadVert[] = {
     1.0f, -1.0f, 1.0f, 0.0f,
     1.0f, 1.0f, 1.0f, 1.0f,
     -1.0f, 1.0f, 0.0f, 1.0f,
@@ -53,6 +50,17 @@ GLfloat vert[] = {
     1.0f, -1.0f, 1.0f, 0.0f,
     -1.0f, 1.0f, 0.0f, 1.0f,
     -1.0f, -1.0f, 0.0f, 0.0f};
+
+// Derived class inheriting from Base
+class CShaderEXT : public CShader
+{
+public:
+  GLint vbo = -1;
+  GLuint quadVAO = -1;
+  GLuint quadVBO = -1;
+};
+
+CShaderEXT shader;
 
 inline const std::string myTEXVERTSRC = R"#(
 uniform mat3 proj;
@@ -108,16 +116,21 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
     shader.tex = glGetUniformLocation(shader.program, "tex");
     shader.texAttrib = glGetAttribLocation(shader.program, "texcoord");
     shader.posAttrib = glGetAttribLocation(shader.program, "pos");
+
+    glGenVertexArrays(1, &shader.quadVAO);
+    glGenBuffers(1, &shader.quadVBO);
+    glBindVertexArray(shader.quadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, shader.quadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVert), &quadVert, GL_STATIC_DRAW);
+    glVertexAttribPointer(shader.posAttrib, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
+    glVertexAttribPointer(shader.texAttrib, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)(2 * sizeof(GLfloat)));
+    glEnableVertexAttribArray(shader.posAttrib);
+    glEnableVertexAttribArray(shader.texAttrib);
     std::cout << "[window-shader]: Shader Generated!!! " << std::endl;
   }
 
-  // unsigned int quadVAO, quadVBO;
-  // glGenVertexArrays(1, &quadVAO);
-  // glGenBuffers(1, &quadVBO);
-  // glBindVertexArray(quadVAO);
-  // glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-  // glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices,
-  //              GL_STATIC_DRAW);
+  glBindVertexArray(shader.quadVAO);
+  glBindBuffer(GL_ARRAY_BUFFER, shader.quadVBO);
 
   // ping: render with user's shader
   glBindFramebuffer(GL_FRAMEBUFFER, fb.m_iFb);
@@ -128,10 +141,6 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   glBindTexture(GL_TEXTURE_2D, windowTexture.m_iTexID);
   glUseProgram(shader.program);
 
-  glVertexAttribPointer(shader.posAttrib, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), vert);
-  glVertexAttribPointer(shader.texAttrib, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), &vert[2]);
-  glEnableVertexAttribArray(shader.posAttrib);
-  glEnableVertexAttribArray(shader.texAttrib);
   glUniformMatrix3fv(shader.proj, 1, GL_FALSE, identityMatrix);
 
   glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -147,6 +156,10 @@ void CWindowTransformer::preWindowRender(SRenderData *pRenderData)
   glUniformMatrix3fv(passThroughShader->proj, 1, GL_FALSE, identityMatrix);
 
   glDrawArrays(GL_TRIANGLES, 0, 6);
+
+  // unbind buffer and array
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glBindVertexArray(0);
 }
 
 CFramebuffer *CWindowTransformer::transform(CFramebuffer *in) { return in; }
