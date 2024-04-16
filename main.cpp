@@ -64,7 +64,8 @@ std::string loadShader(std::string path) {
 
 class CWindowTransformer : public IWindowTransformer {
 public:
-  CWindowTransformer(std::string fragmentShader, std::string vertexShader) {
+  CWindowTransformer(const std::string &fragmentShader,
+                     const std::string &vertexShader) {
     std::string fragShader = loadShader(fragmentShader);
     if (!fragShader.empty()) {
       this->fragmentShader = fragShader;
@@ -72,7 +73,7 @@ public:
 
     std::string vertShader = loadShader(vertexShader);
     if (!vertShader.empty()) {
-      vertShader = vertShader;
+      this->vertexShader = vertexShader;
     }
   }
   virtual CFramebuffer *transform(CFramebuffer *in);
@@ -226,12 +227,15 @@ static void onNewWindow(void *self, std::any data) {
             ->getDataStaticPtr();
     static auto *const PVERTEXSHADER =
         (Hyprlang::STRING const *)HyprlandAPI::getConfigValue(
-            PHANDLE, "plugin:vertex-shader:class")
+            PHANDLE, "plugin:window-shaders:vertex-shader")
             ->getDataStaticPtr();
+
+    std::string fragmentShader(*PFRAGMENTSHADER);
+    std::string vertexShader(*PVERTEXSHADER);
 
     // TODO pass PFRAGMENTSHADER and PVERTEXSHADER
     PWINDOW->m_vTransformers.push_back(
-        std::make_unique<CWindowTransformer>("", ""));
+        std::make_unique<CWindowTransformer>(fragmentShader, vertexShader));
   }
 }
 
@@ -252,9 +256,9 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
   HyprlandAPI::addConfigValue(PHANDLE, "plugin:window-shaders:class",
                               Hyprlang::STRING{""});
   HyprlandAPI::addConfigValue(PHANDLE, "plugin:window-shaders:fragment-shader",
-                              Hyprlang::STRING{"br"});
+                              Hyprlang::STRING{""});
   HyprlandAPI::addConfigValue(PHANDLE, "plugin:window-shaders:vertex-shader",
-                              Hyprlang::STRING{"ee"});
+                              Hyprlang::STRING{""});
 
   HyprlandAPI::registerCallbackDynamic(
       PHANDLE, "openWindow",
